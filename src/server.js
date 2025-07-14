@@ -460,6 +460,145 @@ app.get('/auth/google/callback', async (req, res) => {
   }
 });
 
+// ===== API ADMIN =====
+app.get('/api/admin/stats', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ 
+      error: 'Base de données non configurée',
+      message: 'Supabase n\'est pas configuré sur ce serveur'
+    });
+  }
+  
+  try {
+    // Récupérer tous les rendez-vous
+    const { data: appointments, error } = await supabase
+      .from('consultations')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Calculer les statistiques
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const stats = {
+      totalAppointments: appointments.length,
+      confirmedAppointments: appointments.filter(apt => apt.status === 'confirmed').length,
+      pendingAppointments: appointments.filter(apt => apt.status === 'pending').length,
+      cancelledAppointments: appointments.filter(apt => apt.status === 'cancelled').length,
+      thisWeekAppointments: appointments.filter(apt => {
+        const aptDate = new Date(apt.date);
+        return aptDate >= startOfWeek && aptDate <= now;
+      }).length,
+      thisMonthAppointments: appointments.filter(apt => {
+        const aptDate = new Date(apt.date);
+        return aptDate >= startOfMonth && aptDate <= now;
+      }).length
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route pour mettre à jour un rendez-vous
+app.put('/api/consultations/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ 
+      error: 'Base de données non configurée',
+      message: 'Supabase n\'est pas configuré sur ce serveur'
+    });
+  }
+  
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const { data, error } = await supabase
+      .from('consultations')
+      .update({
+        ...updates,
+        updated_at: new Date()
+      })
+      .eq('id', id)
+      .select();
+    
+    if (error) throw error;
+    
+    res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route pour supprimer un rendez-vous
+app.delete('/api/consultations/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ 
+      error: 'Base de données non configurée',
+      message: 'Supabase n\'est pas configuré sur ce serveur'
+    });
+  }
+  
+  try {
+    const { id } = req.params;
+    
+    const { error } = await supabase
+      .from('consultations')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route pour récupérer les rendez-vous avec filtres
+app.get('/api/consultations', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ 
+      error: 'Base de données non configurée',
+      message: 'Supabase n\'est pas configuré sur ce serveur'
+    });
+  }
+  
+  try {
+    const { start, end, status, type } = req.query;
+    
+    let query = supabase
+      .from('consultations')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    // Appliquer les filtres
+    if (start && end) {
+      query = query.gte('date', start).lte('date', end);
+    }
+    
+    if (status) {
+      query = query.eq('status', status);
+    }
+    
+    if (type) {
+      query = query.eq('type', type);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Gestion des erreurs
 app.use((err, req, res, next) => {
   console.error(err.stack);
