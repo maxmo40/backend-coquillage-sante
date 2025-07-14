@@ -161,7 +161,7 @@ app.post('/api/consultations', async (req, res) => {
   }
   
   try {
-    const { user_id, date, time, type, notes } = req.body;
+    const { user_id, date, time, type, notes, patient_name, patient_email, patient_phone } = req.body;
     
     const { data, error } = await supabase
       .from('consultations')
@@ -171,6 +171,9 @@ app.post('/api/consultations', async (req, res) => {
         time, 
         type, 
         notes, 
+        patient_name,
+        patient_email,
+        patient_phone,
         status: 'pending',
         created_at: new Date() 
       }])
