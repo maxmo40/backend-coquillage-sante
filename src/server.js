@@ -51,8 +51,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.
 }
 
 // Middleware
+const allowedOrigins = ['https://diet974.vercel.app', 'http://localhost:8080', 'http://localhost:3000'];
+console.log('🌐 Origines CORS autorisées:', allowedOrigins);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://diet974.vercel.app',
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
